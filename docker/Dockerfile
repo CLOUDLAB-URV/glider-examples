@@ -18,7 +18,7 @@ RUN echo "Crail-application build" && \
 ENV CLASSPATH=${CRAIL_HOME}/jars/*:${CRAIL_HOME}/conf:.
 
 # CONFIG MAIN CLASS
-ENV MAIN_CLASS=org.example.wordcount.DistributedWordCount
+ENV MAIN_CLASS=org.example.TestStream
 
 WORKDIR /application/target
 ENTRYPOINT []
