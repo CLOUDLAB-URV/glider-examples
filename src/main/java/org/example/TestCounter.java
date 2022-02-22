@@ -1,6 +1,7 @@
 package org.example;
 
-import java.nio.ByteBuffer;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
 
 import org.apache.crail.CrailLocationClass;
 import org.apache.crail.CrailNodeType;
@@ -36,15 +37,21 @@ public class TestCounter {
     proxy.create(CounterAction.class);
 
     // Add counter
-    ByteBuffer buffer = ByteBuffer.allocate(Long.BYTES);
-    buffer.putLong(4);
-    proxy.write(buffer.array());
-    proxy.write(buffer.array());
+    DataOutputStream dataOutputStream = new DataOutputStream(proxy.getOutputStream());
+    dataOutputStream.writeLong(4);
+    dataOutputStream.close();
+    dataOutputStream = new DataOutputStream(proxy.getOutputStream());
+    dataOutputStream.writeLong(2);
+    dataOutputStream.writeLong(2);  // Should be ignored
+    dataOutputStream.close();
 
     // Get counter
-    buffer = ByteBuffer.allocate(Long.BYTES);
-    proxy.read(buffer.array());
-    long count = buffer.getLong();
-    System.out.println(count);
+    DataInputStream dataInputStream = new DataInputStream(proxy.getInputStream());
+    long count = dataInputStream.readLong();
+    dataInputStream.close();
+    System.out.println(count);    // Expected: 6
+
+    proxy.delete();
+    store.close();
   }
 }

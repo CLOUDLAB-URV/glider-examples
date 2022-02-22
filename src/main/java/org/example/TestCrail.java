@@ -13,7 +13,7 @@ import org.apache.crail.CrailStore;
 import org.apache.crail.conf.CrailConfiguration;
 
 /**
- * Test a common Crail File (Write/Read)
+ * Test a common Crail File (Write/Read) (not active)
  */
 public class TestCrail {
   public static void main(String[] args) throws Exception {

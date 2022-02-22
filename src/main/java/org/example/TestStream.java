@@ -64,5 +64,9 @@ public class TestStream {
 //		System.out.println("file lines = " + reader.lines().count());
     reader.lines().forEach(l -> System.out.println(l.substring(1, 50)));
 
+    // Delete
+    proxy.delete();
+    store.close();
+
   }
 }
