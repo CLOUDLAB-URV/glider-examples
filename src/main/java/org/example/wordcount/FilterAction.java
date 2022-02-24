@@ -44,7 +44,7 @@ public class FilterAction extends CrailAction {
   }
 
   @Override
-  public void onReadStream(WritableByteChannel channel) {
+  public void onRead(WritableByteChannel channel) {
     System.out.println("Filter action on read stream: " + this.self.getPath());
     // Just return what is on the crail file
     try {
@@ -65,7 +65,7 @@ public class FilterAction extends CrailAction {
   }
 
   @Override
-  public void onWriteStream(ReadableByteChannel channel) {
+  public void onWrite(ReadableByteChannel channel) {
     // Process received data: filter lines, store to crail file only filtered data
     System.out.println("Filter action on write stream: " + this.self.getPath());
 

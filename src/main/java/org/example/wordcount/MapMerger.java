@@ -25,7 +25,7 @@ public class MapMerger extends CrailAction {
   }
 
   @Override
-  public void onReadStream(WritableByteChannel channel) {
+  public void onRead(WritableByteChannel channel) {
     // this action's serialized aggMap is written to channel
     System.out.println("Reading merged map...");
     try {
@@ -39,7 +39,7 @@ public class MapMerger extends CrailAction {
   }
 
   @Override
-  public void onWriteStream(ReadableByteChannel channel) {
+  public void onWrite(ReadableByteChannel channel) {
     // channel contains a Map<String, Long> that should be merged into this action's aggMap
     System.out.println("Merging into map...");
     try {
