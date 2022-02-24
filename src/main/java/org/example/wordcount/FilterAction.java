@@ -2,12 +2,14 @@ package org.example.wordcount;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.stream.Stream;
 
 import org.apache.crail.CrailAction;
@@ -33,8 +35,8 @@ public class FilterAction extends CrailAction {
     try {
       // Create the delegated crail file
       myData = this.fs.create(this.self.getPath() + FILE_SUFFIX, CrailNodeType.DATAFILE,
-              CrailStorageClass.get(1), CrailLocationClass.DEFAULT, false)
-          .get().asFile();
+                              CrailStorageClass.get(1), CrailLocationClass.DEFAULT, false)
+                      .get().asFile();
     } catch (Exception e) {
       System.out.println("Error creating data file for action " + self.getPath());
       e.printStackTrace();
@@ -42,14 +44,20 @@ public class FilterAction extends CrailAction {
   }
 
   @Override
-  public void onRead(ByteBuffer buffer) {
-    System.out.println("Filter action on read: " + this.self.getPath());
+  public void onReadStream(WritableByteChannel channel) {
+    System.out.println("Filter action on read stream: " + this.self.getPath());
     // Just return what is on the crail file
     try {
+      ByteBuffer buffer = ByteBuffer.allocate(8 * 1024);
       CrailBufferedInputStream bufferedStream =
-          myData.getBufferedInputStream(buffer.remaining());
-      bufferedStream.read(buffer);
+          myData.getBufferedInputStream(8 * 1024);
+      while (bufferedStream.read(buffer) != -1) {
+        buffer.flip();
+        channel.write(buffer);
+        buffer.clear();
+      }
       bufferedStream.close();
+      channel.close();
     } catch (Exception e) {
       System.out.println("Error reading from data file for action " + self.getPath());
       e.printStackTrace();
@@ -57,38 +65,29 @@ public class FilterAction extends CrailAction {
   }
 
   @Override
-  public int onWrite(ByteBuffer buffer) {
+  public void onWriteStream(ReadableByteChannel channel) {
     // Process received data: filter lines, store to crail file only filtered data
-    System.out.println("Filter action on write: " + this.self.getPath());
+    System.out.println("Filter action on write stream: " + this.self.getPath());
 
-    byte[] input = new byte[buffer.remaining()];
-    buffer.get(input);
-    ByteArrayInputStream is = new ByteArrayInputStream(input);
-    Stream<String> lines = new BufferedReader(new InputStreamReader(is)).lines();
+    InputStream stream = Channels.newInputStream(channel);
+    Stream<String> lines = new BufferedReader(new InputStreamReader(stream)).lines();
     Stream<String> linesWithGold = lines.filter(l -> l.contains("gold"));
 
-    ByteArrayOutputStream os = new ByteArrayOutputStream();
-    BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(os));
-    linesWithGold.forEachOrdered(l -> {
-      try {
-        writer.write(l);
-        writer.newLine();
-      } catch (IOException e) {
-        e.printStackTrace();
-      }
-    });
-
     try {
-      byte[] output = os.toByteArray();
-      CrailBufferedOutputStream outputStream =
-          myData.getBufferedOutputStream(output.length);
-      outputStream.write(output);
-      outputStream.close();
-      return output.length;
+      CrailBufferedOutputStream outputStream = myData.getBufferedOutputStream(0);
+      BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(outputStream));
+      linesWithGold.forEachOrdered(l -> {
+        try {
+          writer.write(l);
+          writer.newLine();
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      });
+      writer.close();
     } catch (Exception e) {
-      System.out.println("Error writing to data file for action " + self.getPath());
+      System.out.println("Error writing to crail data file for action " + self.getPath());
       e.printStackTrace();
-      return -1;
     }
   }
 

@@ -1,12 +1,13 @@
 package org.example.wordcount;
 
-import java.io.ByteArrayInputStream;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.nio.BufferOverflowException;
-import java.nio.ByteBuffer;
+import java.io.OutputStream;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -24,42 +25,38 @@ public class MapMerger extends CrailAction {
   }
 
   @Override
-  public void onRead(ByteBuffer buffer) {
-    // buffer will be populated with this action's serialized aggMap
+  public void onReadStream(WritableByteChannel channel) {
+    // this action's serialized aggMap is written to channel
     System.out.println("Reading merged map...");
     try {
-      ByteArrayOutputStream byteOS = new ByteArrayOutputStream();
-      ObjectOutputStream objectOutputStream = new ObjectOutputStream(byteOS);
-      objectOutputStream.writeObject(aggMap);
-      buffer.put(byteOS.toByteArray());
+      OutputStream stream = Channels.newOutputStream(channel);
+      ObjectOutputStream oos = new ObjectOutputStream(stream);
+      oos.writeObject(aggMap);
+      oos.close();
     } catch (IOException e) {
       e.printStackTrace();
-    } catch (BufferOverflowException e) {
-      System.out.println("MapMerger action: map does not fit in read buffer.");
     }
   }
 
   @Override
-  public int onWrite(ByteBuffer buffer) {
-    // buffer contains a Map<String, Long> that should be merged into this action's aggMap
+  public void onWriteStream(ReadableByteChannel channel) {
+    // channel contains a Map<String, Long> that should be merged into this action's aggMap
     System.out.println("Merging into map...");
-    int size = buffer.remaining();
     try {
-      ByteBuffer array = ByteBuffer.allocate(size).put(buffer);
-      ByteArrayInputStream byteIS = new ByteArrayInputStream(array.array());
-      ObjectInputStream inputStream = new ObjectInputStream(byteIS);
+      InputStream stream = Channels.newInputStream(channel);
+      ObjectInputStream ois = new ObjectInputStream(stream);
       @SuppressWarnings("unchecked")
-      Map<String, Long> newMap = (Map<String, Long>) inputStream.readObject();
+      Map<String, Long> newMap = (Map<String, Long>) ois.readObject();
+      ois.close();
       newMap.forEach((key, value) -> aggMap.merge(key, value, Long::sum));
     } catch (IOException e) {
       e.printStackTrace();
-      size = 0;
     } catch (ClassNotFoundException | ClassCastException e) {
       System.out.println("MapMerger action: Object sent is not a map.");
       e.printStackTrace();
-      size = 0;
+    } finally {
+      System.out.println("Finished merge");
     }
-    return size;
   }
 
   @Override

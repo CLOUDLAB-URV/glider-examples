@@ -32,7 +32,8 @@ public class TestCrail {
 
     // Write
     CrailFile fileW = store.create(filename, CrailNodeType.DATAFILE, CrailStorageClass.DEFAULT,
-        CrailLocationClass.DEFAULT, false).get().asFile();
+                                   CrailLocationClass.DEFAULT, false)
+                           .get().asFile();
     CrailBufferedOutputStream outputStream = fileW.getBufferedOutputStream(2000000);
     System.out.println(fileW.getPath() + " " + fileW.getFd());
 

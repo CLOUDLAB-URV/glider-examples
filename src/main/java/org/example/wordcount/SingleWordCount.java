@@ -1,9 +1,8 @@
 package org.example.wordcount;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayInputStream;
-import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.channels.FileChannel;
@@ -18,8 +17,17 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-import org.apache.crail.*;
+import org.apache.crail.CrailBufferedInputStream;
+import org.apache.crail.CrailBufferedOutputStream;
+import org.apache.crail.CrailFile;
+import org.apache.crail.CrailLocationClass;
+import org.apache.crail.CrailNode;
+import org.apache.crail.CrailNodeType;
+import org.apache.crail.CrailObjectProxy;
+import org.apache.crail.CrailStorageClass;
+import org.apache.crail.CrailStore;
 import org.apache.crail.conf.CrailConfiguration;
+import org.apache.crail.core.ActiveWritableChannel;
 
 /**
  * Local WordCount computation that first filters the lines. It operates on a
@@ -33,7 +41,7 @@ import org.apache.crail.conf.CrailConfiguration;
  * {@link SingleWordCount#runCrailActive()}.
  */
 public class SingleWordCount {
-  public static final String FILENAME = "/Datasets/wiki1/AA/wiki_00";
+  public static final String FILENAME = "/Datasets/wiki100/AA/wiki_00";
   public static final String crailPath = "/wiki_00";
 
   private static CrailConfiguration conf;
@@ -50,6 +58,8 @@ public class SingleWordCount {
 
   public static void main(String[] args) {
     try {
+//      runLocal();
+//      runCrailFile();
       runCrailActive();
     } catch (Exception e) {
       e.printStackTrace();
@@ -63,65 +73,41 @@ public class SingleWordCount {
    * @throws Exception
    */
   public static void runCrailActive() throws Exception {
-    Path path = Paths.get(new File(FILENAME).toURI());
+    Path path = Paths.get(FILENAME);
 
     CrailNode crailNode = store.lookup(crailPath).get();
     CrailObjectProxy filterAction;
-    int dataSize;
     if (crailNode == null) {
       crailNode = store.create(crailPath, CrailNodeType.OBJECT, CrailStorageClass.DEFAULT,
-          CrailLocationClass.DEFAULT, false).get();
+                               CrailLocationClass.DEFAULT, false).get();
       filterAction = crailNode.asObject().getProxy();
       filterAction.create(FilterAction.class);
 
-      byte[] bytes = Files.readAllBytes(path);
-      ByteBuffer buffer = ByteBuffer.allocate(bytes.length);
-      buffer.put(bytes);
-      buffer.rewind();
-      dataSize = filterAction.write(buffer.array());
-      setCrailFileSize(crailPath, dataSize);
+      try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
+        ActiveWritableChannel actionChannel = filterAction.getWritableChannel();
+        ByteBuffer buffer = ByteBuffer.allocate(16 * 1024); // 16 KB buffer
+
+        while (channel.read(buffer) != -1) {
+          buffer.flip();
+          actionChannel.write(buffer);
+          buffer.clear();
+        }
+        actionChannel.close();
+      }
     } else {
       filterAction = crailNode.asObject().getProxy();
-      dataSize = getCrailFileSize(crailPath);
     }
 
-    byte[] input = new byte[dataSize];
-    filterAction.read(input);
-    ByteArrayInputStream is = new ByteArrayInputStream(input);
+    InputStream is = filterAction.getInputStream();
     Stream<String> lines = new BufferedReader(new InputStreamReader(is)).lines();
 
     long time1 = System.currentTimeMillis();
     Map<String, Long> words = countWordsLocal(lines);
     long time2 = System.currentTimeMillis();
-    List<Map.Entry<String, Long>> top10 = words.entrySet().stream()
-        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())).limit(10)
-        .collect(Collectors.toList());
+    List<Map.Entry<String, Long>> top10 = getTop10(words);
     System.out.println(top10);
 
     System.out.println("Elapsed: " + (time2 - time1) + " ms");
-  }
-
-  private static int getCrailFileSize(String crailPath) throws Exception {
-    String sizePath = crailPath + "-size";
-    CrailFile sizeFile = store.lookup(sizePath).get().asFile();
-    CrailBufferedInputStream inputStream = sizeFile.getBufferedInputStream(Integer.SIZE);
-    int size = inputStream.readInt();
-    inputStream.close();
-    return size;
-  }
-
-  private static void setCrailFileSize(String crailPath, int dataSize) throws Exception {
-    String sizePath = crailPath + "-size";
-    try {
-      store.delete(sizePath, true);
-    } catch (Exception e) {
-      e.printStackTrace();
-    }
-    CrailFile sizeFile = store.create(sizePath, CrailNodeType.DATAFILE, CrailStorageClass.get(1),
-        CrailLocationClass.DEFAULT, false).get().asFile();
-    CrailBufferedOutputStream outputStream = sizeFile.getBufferedOutputStream(Integer.SIZE);
-    outputStream.writeInt(dataSize);
-    outputStream.close();
   }
 
   /**
@@ -131,12 +117,11 @@ public class SingleWordCount {
    * @throws IOException
    */
   public static void runCrailFile() throws Exception {
-
     CrailNode crailNode = store.lookup(crailPath).get();
     if (crailNode == null) {
       System.out.println("Loading file to Crail... " + FILENAME);
       crailNode = store.create(crailPath, CrailNodeType.DATAFILE, CrailStorageClass.get(1),
-          CrailLocationClass.DEFAULT, false).get();
+                               CrailLocationClass.DEFAULT, false).get();
       sendFileToCrail(FILENAME, crailNode.asFile());
       System.out.println("Done");
     }
@@ -148,9 +133,7 @@ public class SingleWordCount {
     long time1 = System.currentTimeMillis();
     Map<String, Long> words = countWordsLocal(lines);
     long time2 = System.currentTimeMillis();
-    List<Map.Entry<String, Long>> top10 = words.entrySet().stream()
-        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())).limit(10)
-        .collect(Collectors.toList());
+    List<Map.Entry<String, Long>> top10 = getTop10(words);
     System.out.println(top10);
 
     System.out.println("Elapsed: " + (time2 - time1) + " ms");
@@ -159,20 +142,17 @@ public class SingleWordCount {
     store.close();
   }
 
-
   /**
    * Full local implementation. The file is loaded from local filesystem.
    *
    * @throws IOException
    */
   public static void runLocal() throws IOException {
-    Stream<String> lines = fileLines(FILENAME);
+    Stream<String> lines = Files.lines(Paths.get(FILENAME));
     long time1 = System.currentTimeMillis();
     Map<String, Long> words = countWordsLocal(lines);
     long time2 = System.currentTimeMillis();
-    List<Map.Entry<String, Long>> top10 = words.entrySet().stream()
-        .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder())).limit(10)
-        .collect(Collectors.toList());
+    List<Map.Entry<String, Long>> top10 = getTop10(words);
     System.out.println(top10);
 
     System.out.println("Elapsed: " + (time2 - time1) + " ms");
@@ -180,13 +160,16 @@ public class SingleWordCount {
 
   public static Map<String, Long> countWordsLocal(Stream<String> lines) {
     return lines.parallel()
-        .flatMap(line -> Stream.of(line.toLowerCase().split("\\W+"))
-            .filter(w -> !w.isEmpty()))
-        .collect(Collectors.groupingByConcurrent(Function.identity(), Collectors.counting()));
+                .flatMap(line -> Stream.of(line.toLowerCase().split("\\W+"))
+                                       .filter(w -> !w.isEmpty()))
+                .collect(Collectors.groupingByConcurrent(Function.identity(), Collectors.counting()));
   }
 
-  public static Stream<String> fileLines(String file) throws IOException {
-    return Files.lines(Paths.get(new File(file).toURI()));
+  private static List<Map.Entry<String, Long>> getTop10(Map<String, Long> words) {
+    return words.entrySet().stream()
+                .sorted(Map.Entry.comparingByValue(Comparator.reverseOrder()))
+                .limit(10)
+                .collect(Collectors.toList());
   }
 
   /**
@@ -198,7 +181,7 @@ public class SingleWordCount {
    */
   private static void sendFileToCrail(String filename, CrailFile crailFile) {
     // could be improved with memory-mapped file?
-    Path path = Paths.get(new File(filename).toURI());
+    Path path = Paths.get(filename);
     try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
       CrailBufferedOutputStream crailBufferedOutputStream =
           crailFile.getBufferedOutputStream(channel.size());

@@ -31,7 +31,8 @@ public class TestCounter {
 
     // Create
     CrailObject obj = store.create(crailPath, CrailNodeType.OBJECT, CrailStorageClass.DEFAULT,
-        CrailLocationClass.DEFAULT, false).get().asObject();
+                                   CrailLocationClass.DEFAULT, false)
+                           .get().asObject();
     CrailObjectProxy proxy = obj.getProxy();
     System.out.println("Path: " + obj.getPath() + ", id: " + obj.getFd());
     proxy.create(CounterAction.class);

@@ -1,11 +1,9 @@
 package org.example;
 
-import org.apache.crail.*;
-import org.apache.crail.active.BasicAction;
-import org.apache.crail.conf.CrailConfiguration;
-import org.apache.crail.core.ActiveWritableChannel;
-
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
 import java.nio.channels.FileChannel;
@@ -13,6 +11,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+
+import org.apache.crail.CrailLocationClass;
+import org.apache.crail.CrailNodeType;
+import org.apache.crail.CrailObject;
+import org.apache.crail.CrailObjectProxy;
+import org.apache.crail.CrailStorageClass;
+import org.apache.crail.CrailStore;
+import org.apache.crail.active.ActionWithFile;
+import org.apache.crail.conf.CrailConfiguration;
+import org.apache.crail.core.ActiveWritableChannel;
 
 public class TestStream {
   public static void main(String[] args) throws Exception {
@@ -30,11 +38,12 @@ public class TestStream {
 
     // Create
     CrailObject obj = store.create(filename, CrailNodeType.OBJECT, CrailStorageClass.DEFAULT,
-        CrailLocationClass.DEFAULT, false).get().asObject();
+                                   CrailLocationClass.DEFAULT, false)
+                           .get().asObject();
     obj.syncDir();
     CrailObjectProxy proxy = obj.getProxy();
     System.out.println("Path: " + obj.getPath() + ", id: " + obj.getFd());
-    proxy.create(BasicAction.class);
+    proxy.create(ActionWithFile.class);
 
     // Stream write
     Path path = Paths.get("/Datasets/wiki1/AA/wiki_00");
@@ -55,12 +64,12 @@ public class TestStream {
       InputStream stream = Channels.newInputStream(channel);
       BufferedReader reader = new BufferedReader(new InputStreamReader(stream));
 //      System.out.println("file lines = " + reader.lines().count());
-      reader.lines().forEach(l -> System.out.println(l.substring(1,50)));
+      reader.lines().forEach(l -> System.out.println(l.substring(1, 50)));
     }
 
     // Stream read
     InputStream is = proxy.getInputStream();
-    BufferedReader reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(is, 16*1024)));
+    BufferedReader reader = new BufferedReader(new InputStreamReader(new BufferedInputStream(is, 16 * 1024)));
 //		System.out.println("file lines = " + reader.lines().count());
     reader.lines().forEach(l -> System.out.println(l.substring(1, 50)));
 

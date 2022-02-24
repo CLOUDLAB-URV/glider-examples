@@ -33,7 +33,8 @@ public class TestObject {
 
     // Create
     CrailObject obj = store.create(filename, CrailNodeType.OBJECT, CrailStorageClass.DEFAULT,
-        CrailLocationClass.DEFAULT, false).get().asObject();
+                                   CrailLocationClass.DEFAULT, false)
+                           .get().asObject();
     obj.syncDir();
     CrailObjectProxy proxy = obj.getProxy();
     System.out.println("Path: " + obj.getPath() + ", id: " + obj.getFd());
