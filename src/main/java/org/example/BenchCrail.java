@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
+import java.util.Random;
 
 import org.apache.crail.CrailBufferedInputStream;
 import org.apache.crail.CrailBufferedOutputStream;
@@ -36,11 +37,10 @@ public class BenchCrail {
 
     // Write
     CrailFile crailFile = store.create(crailPath, CrailNodeType.DATAFILE, CrailStorageClass.get(1),
-                                   CrailLocationClass.DEFAULT, false)
-                           .get().asFile();
+        CrailLocationClass.DEFAULT, false)
+        .get().asFile();
     System.out.println(crailFile.getPath() + " " + crailFile.getFd());
 
-    
     long time1 = System.currentTimeMillis();
     // long written = writeFileToCrail(localFile, crailFile);
     writeBytesToCrail(bytesToWrite, crailFile);
@@ -53,13 +53,12 @@ public class BenchCrail {
     System.out.println("Bytes written: " + kb + " kb");
     System.out.println("Bandwidth: " + kb / elapsedSecs + " kb/s");
 
-
     // Read
-    
+
     time1 = System.currentTimeMillis();
     long read = readFileToCrail(crailFile);
     time2 = System.currentTimeMillis();
-    
+
     elapsedSecs = (double) (time2 - time1) / 1000;
     kb = (double) read / 1024;
 
@@ -67,7 +66,6 @@ public class BenchCrail {
     System.out.println("Elapsed reading: " + elapsedSecs + " s");
     System.out.println("Bytes read: " + kb + " kb");
     System.out.println("Bandwidth: " + kb / elapsedSecs + " kb/s");
-
 
     store.close();
   }
@@ -83,8 +81,7 @@ public class BenchCrail {
     Path path = Paths.get(filename);
     long totalRead = 0;
     try (FileChannel channel = FileChannel.open(path, StandardOpenOption.READ)) {
-      CrailBufferedOutputStream crailBufferedOutputStream =
-          crailFile.getBufferedOutputStream(channel.size());
+      CrailBufferedOutputStream crailBufferedOutputStream = crailFile.getBufferedOutputStream(channel.size());
 
       ByteBuffer buffer = ByteBuffer.allocate(8 * 1024); // 8 KB buffer
 
@@ -117,8 +114,7 @@ public class BenchCrail {
   private static long readFileToCrail(CrailFile crailFile) {
     long totalRead = 0;
     try {
-      CrailBufferedInputStream crailBufferedInputStream =
-          crailFile.getBufferedInputStream(8 * 1024);
+      CrailBufferedInputStream crailBufferedInputStream = crailFile.getBufferedInputStream(8 * 1024);
 
       ByteBuffer buffer = ByteBuffer.allocate(8 * 1024); // 8 KB buffer
 
@@ -131,7 +127,7 @@ public class BenchCrail {
       }
       crailBufferedInputStream.close();
       return totalRead;
-    }  catch (Exception e) {
+    } catch (Exception e) {
       System.out.println("Crail buffer error.");
       e.printStackTrace();
       return 0;
@@ -141,20 +137,22 @@ public class BenchCrail {
   /**
    * Writes bytes to a crail file. With 8 KB buffer.
    *
-   * @param bytes  number of bytes to write.
+   * @param bytes     number of bytes to write.
    * @param crailFile Crail file descriptor object.
    */
   private static void writeBytesToCrail(long bytes, CrailFile crailFile) {
     try {
-      CrailBufferedOutputStream crailBufferedOutputStream =
-          crailFile.getBufferedOutputStream(bytes);
+      CrailBufferedOutputStream crailBufferedOutputStream = crailFile.getBufferedOutputStream(bytes);
 
-      ByteBuffer buffer = ByteBuffer.allocate(8 * 1024); // 8 KB buffer
+      byte[] b = new byte[8 * 1024];
+      Random random = new Random();
+      random.nextBytes(b);
+      ByteBuffer buffer = ByteBuffer.wrap(b); // 8 KB buffer
 
       long written = 0;
       while (written < bytes) {
-        if (written+buffer.capacity() > bytes) {
-          buffer.limit((int) (bytes-written));
+        if (written + buffer.capacity() > bytes) {
+          buffer.limit((int) (bytes - written));
         }
         written += buffer.remaining();
         crailBufferedOutputStream.write(buffer);
