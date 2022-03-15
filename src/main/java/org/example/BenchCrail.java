@@ -25,7 +25,8 @@ public class BenchCrail {
     CrailStore store = CrailStore.newInstance(conf);
 
     String crailPath = "/test-file";
-    String localFile = "/Datasets/wiki100/AA/wiki_00";
+    // String localFile = "/Datasets/wiki100/AA/wiki_00";
+    long bytesToWrite = 1024 * 1024 * 1024;
 
     try {
       store.delete(crailPath, true);
@@ -41,11 +42,12 @@ public class BenchCrail {
 
     
     long time1 = System.currentTimeMillis();
-    long written = writeFileToCrail(localFile, crailFile);
+    // long written = writeFileToCrail(localFile, crailFile);
+    writeBytesToCrail(bytesToWrite, crailFile);
     long time2 = System.currentTimeMillis();
 
     double elapsedSecs = (double) (time2 - time1) / 1000;
-    double kb = (double) written / 1024;
+    double kb = (double) bytesToWrite / 1024;
 
     System.out.println("Elapsed writing: " + elapsedSecs + " s");
     System.out.println("Bytes written: " + kb + " kb");
@@ -133,6 +135,35 @@ public class BenchCrail {
       System.out.println("Crail buffer error.");
       e.printStackTrace();
       return 0;
+    }
+  }
+
+  /**
+   * Writes bytes to a crail file. With 8 KB buffer.
+   *
+   * @param bytes  number of bytes to write.
+   * @param crailFile Crail file descriptor object.
+   */
+  private static void writeBytesToCrail(long bytes, CrailFile crailFile) {
+    try {
+      CrailBufferedOutputStream crailBufferedOutputStream =
+          crailFile.getBufferedOutputStream(bytes);
+
+      ByteBuffer buffer = ByteBuffer.allocate(8 * 1024); // 8 KB buffer
+
+      long written = 0;
+      while (written < bytes) {
+        if (written+buffer.capacity() > bytes) {
+          buffer.limit((int) (bytes-written));
+        }
+        written += buffer.remaining();
+        crailBufferedOutputStream.write(buffer);
+        buffer.clear();
+      }
+      crailBufferedOutputStream.close();
+    } catch (Exception e) {
+      System.out.println("Crail buffer error.");
+      e.printStackTrace();
     }
   }
 }
