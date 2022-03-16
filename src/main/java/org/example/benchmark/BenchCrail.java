@@ -1,4 +1,4 @@
-package org.example;
+package org.example.benchmark;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -6,12 +6,10 @@ import java.nio.channels.FileChannel;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.Arrays;
 import java.util.Random;
 
 import org.apache.crail.CrailBufferedInputStream;
 import org.apache.crail.CrailBufferedOutputStream;
-import org.apache.crail.CrailDirectory;
 import org.apache.crail.CrailFile;
 import org.apache.crail.CrailLocationClass;
 import org.apache.crail.CrailNodeType;
@@ -56,7 +54,7 @@ public class BenchCrail {
     // Read
 
     time1 = System.currentTimeMillis();
-    long read = readFileToCrail(crailFile);
+    long read = readFileFromCrail(crailFile);
     time2 = System.currentTimeMillis();
 
     elapsedSecs = (double) (time2 - time1) / 1000;
@@ -111,7 +109,7 @@ public class BenchCrail {
    *
    * @param crailFile Crail file descriptor object.
    */
-  private static long readFileToCrail(CrailFile crailFile) {
+  static long readFileFromCrail(CrailFile crailFile) {
     long totalRead = 0;
     try {
       CrailBufferedInputStream crailBufferedInputStream = crailFile.getBufferedInputStream(8 * 1024);
@@ -140,7 +138,7 @@ public class BenchCrail {
    * @param bytes     number of bytes to write.
    * @param crailFile Crail file descriptor object.
    */
-  private static void writeBytesToCrail(long bytes, CrailFile crailFile) {
+  static void writeBytesToCrail(long bytes, CrailFile crailFile) {
     try {
       CrailBufferedOutputStream crailBufferedOutputStream = crailFile.getBufferedOutputStream(bytes);
 
