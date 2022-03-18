@@ -18,7 +18,7 @@ RUN echo "Crail-application build" && \
 ENV CLASSPATH=${CRAIL_HOME}/jars/*:${CRAIL_HOME}/conf:.
 
 # CONFIG MAIN CLASS
-ENV MAIN_CLASS=org.example.benchmark.BenchActionCrail
+ENV MAIN_CLASS=org.example.benchmark.actionbw.BenchActionBw
 
 WORKDIR /application/target
 ENTRYPOINT []
