@@ -4,8 +4,11 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
+import java.util.Random;
 
 import org.apache.crail.CrailAction;
+import org.apache.crail.CrailBufferedInputStream;
+import org.apache.crail.CrailBufferedOutputStream;
 import org.apache.crail.CrailFile;
 import org.apache.crail.CrailLocationClass;
 import org.apache.crail.CrailNodeType;
@@ -14,7 +17,7 @@ import org.apache.crail.CrailStorageClass;
 public class ActionBench extends CrailAction {
   public static final String FILE_SUFFIX = "-data";
   private CrailFile crailFile;
-  private long bytesToWrite = 1024 * 1024 * 1024;
+  private long mbToWrite = 50 * 1024;
 
   @Override
   public void onCreate() {
@@ -31,7 +34,7 @@ public class ActionBench extends CrailAction {
   @Override
   public void onRead(WritableByteChannel channel) {
     long time1 = System.currentTimeMillis();
-    long read = BenchCrail.readFileFromCrail(crailFile);
+    long read = readFileFromCrail(crailFile);
     long time2 = System.currentTimeMillis();
 
     double elapsedSecs = (double) (time2 - time1) / 1000;
@@ -50,15 +53,15 @@ public class ActionBench extends CrailAction {
       e.printStackTrace();
     }
   }
-  
+
   @Override
   public void onWrite(ReadableByteChannel channel) {
     long time1 = System.currentTimeMillis();
-    BenchCrail.writeBytesToCrail(bytesToWrite, crailFile);
+    writeBytesToCrail(mbToWrite, crailFile);
     long time2 = System.currentTimeMillis();
 
     double elapsedSecs = (double) (time2 - time1) / 1000;
-    double kb = (double) bytesToWrite / 1024;
+    double kb = (double) mbToWrite * 1024;
 
     System.out.println("WRITE");
     System.out.println("Elapsed writing: " + elapsedSecs + " s");
@@ -76,6 +79,61 @@ public class ActionBench extends CrailAction {
     try {
       this.fs.delete(crailFile.getPath(), true).get();
     } catch (Exception e) {
+      e.printStackTrace();
+    }
+  }
+
+  /**
+   * Reads a file from Crail servers.
+   *
+   * @param crailFile Crail file descriptor object.
+   */
+  static long readFileFromCrail(CrailFile crailFile) {
+    long totalRead = 0;
+    try {
+      CrailBufferedInputStream crailBufferedInputStream = crailFile.getBufferedInputStream(8 * 1024);
+
+      ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024); // 1MB buffer
+
+      int currentRead = crailBufferedInputStream.read(buffer);
+      while (currentRead != -1) {
+        totalRead += currentRead;
+        // buffer.flip();
+        buffer.clear();
+        currentRead = crailBufferedInputStream.read(buffer);
+      }
+      crailBufferedInputStream.close();
+      return totalRead;
+    } catch (Exception e) {
+      System.out.println("Crail buffer error.");
+      e.printStackTrace();
+      return 0;
+    }
+  }
+
+  /**
+   * Writes bytes to a crail file.
+   *
+   * @param mb        number of megabytes to write.
+   * @param crailFile Crail file descriptor object.
+   */
+  static void writeBytesToCrail(long mb, CrailFile crailFile) {
+    try {
+      CrailBufferedOutputStream crailBufferedOutputStream = crailFile.getBufferedOutputStream(mb*1024*1024);
+
+      byte[] b = new byte[1024 * 1024];
+      Random random = new Random();
+      random.nextBytes(b);
+      ByteBuffer buffer = ByteBuffer.allocateDirect(1024*1024); // 1 MB buffer
+      buffer.put(b).clear();      
+
+      for (long writen = 0; writen < mb; writen++) {
+        crailBufferedOutputStream.write(buffer);
+        buffer.clear();
+      }
+      crailBufferedOutputStream.close();
+    } catch (Exception e) {
+      System.out.println("Crail buffer error.");
       e.printStackTrace();
     }
   }
