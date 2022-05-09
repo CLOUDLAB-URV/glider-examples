@@ -1,4 +1,4 @@
-package org.example.preprocessing.baseline;
+package org.example.processing.baseline;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -28,8 +28,8 @@ import org.apache.crail.CrailStore;
 import org.apache.crail.conf.CrailConfiguration;
 
 public class Client {
-  private static int N_WORKERS = 2;
-  private static String FILE_FORM = "/Datasets/wiki512/AA/wiki_%02d";
+  private static int N_WORKERS = 10;
+  private static String FILE_FORM = "/tmp/daniel-data/wiki1G/AA/wiki_%02d";
   private static String CRAIL_FORM = "/wiki_%02d";
 
   private static void sendFileToCrail(String filename, CrailFile crailFile) {
@@ -39,12 +39,21 @@ public class Client {
 
       ByteBuffer buffer = ByteBuffer.allocate(1024 * 1024); // 1 MiB buffer
 
+      long total = 0;
+      long time1 = System.currentTimeMillis();
       while (channel.read(buffer) != -1) {
         buffer.flip();
+        total += buffer.remaining();
         crailBufferedOutputStream.write(buffer);
         buffer.rewind();
       }
       crailBufferedOutputStream.close();
+      long time2 = System.currentTimeMillis();
+      double elapsed = (double)(time2 - time1) / 1000.0;
+
+      System.out.println("Written " + total + " bytes in " + elapsed + " s = "
+          + (total * 8 / elapsed / 1000 / 1000) + " Mbps");
+
     } catch (IOException e) {
       System.out.println("Cannot open/send file: " + path);
       e.printStackTrace();
@@ -132,6 +141,7 @@ public class Client {
         CrailFile crailFile = store.lookup(crailName).get().asFile();
         CrailBufferedInputStream cbis = crailFile.getBufferedInputStream(crailFile.getCapacity());
 
+        long time1 = System.currentTimeMillis();
         // Filter data
         Stream<String> lines = new BufferedReader(new InputStreamReader(cbis)).lines();
         Stream<String> filteredLines = lines.filter(l -> l.contains("cosmos"));
@@ -141,8 +151,12 @@ public class Client {
             .flatMap(line -> Stream.of(line.toLowerCase().split("\\W+"))
                 .filter(w -> !w.isEmpty()))
             .count();
+        long time2 = System.currentTimeMillis();
+        double elapsed = (double)(time2 - time1) / 1000.0;
 
-        System.out.println("Worker " + workerId + " counted " + nWords +" words.");
+        System.out.println("Worker " + workerId + " counted " + nWords + " words.");
+        System.out.println("Processed " + crailFile.getCapacity() + " bytes in " + elapsed + " s = "
+            + (crailFile.getCapacity() * 8 / elapsed / 1000 / 1000) + " Mbps");
 
         store.close();
       } catch (Exception e) {

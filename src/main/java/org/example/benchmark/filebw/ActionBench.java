@@ -14,6 +14,9 @@ import org.apache.crail.CrailLocationClass;
 import org.apache.crail.CrailNodeType;
 import org.apache.crail.CrailStorageClass;
 
+/**
+ * Benchmarks accessing a file from an action.
+ */
 public class ActionBench extends CrailAction {
   public static final String FILE_SUFFIX = "-data";
   private CrailFile crailFile;

@@ -1,7 +1,11 @@
-package org.example.benchmark.actionbw;
+package org.example.benchmark.actionbwasync;
 
 import java.nio.ByteBuffer;
-import java.util.Random;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
+import java.util.stream.Collectors;
 
 import org.apache.crail.CrailLocationClass;
 import org.apache.crail.CrailNodeType;
@@ -10,8 +14,8 @@ import org.apache.crail.CrailObjectProxy;
 import org.apache.crail.CrailStorageClass;
 import org.apache.crail.CrailStore;
 import org.apache.crail.conf.CrailConfiguration;
-import org.apache.crail.core.ActiveReadableChannel;
-import org.apache.crail.core.ActiveWritableChannel;
+import org.apache.crail.core.ActiveAsyncChannel;
+import org.example.benchmark.BwAction;
 
 public class BenchActionBw {
   private static int bufferSize = 1024 * 1024;
@@ -33,16 +37,24 @@ public class BenchActionBw {
     proxy.create(BwAction.class);
 
     // Write
-    ActiveWritableChannel writableChannel = proxy.getWritableChannel();
+    ActiveAsyncChannel writableChannel = proxy.getWritableAsyncChannel();
 
     ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize);
 
     long time1 = System.currentTimeMillis();
 
+    List<Future<Integer>> futures = new LinkedList<>();
     for (long i = 0; i < operations; i++) {
-      writableChannel.write(buffer);
+      futures.add(writableChannel.write(buffer));
       buffer.clear();
     }
+    futures.forEach(f -> {
+      try {
+        f.get();
+      } catch (InterruptedException | ExecutionException e) {
+        e.printStackTrace();
+      }
+    });
     writableChannel.close();
 
     long time2 = System.currentTimeMillis();
@@ -51,27 +63,31 @@ public class BenchActionBw {
     double kb = (double) bufferSize * operations / 1024;
     double bits = (double) bufferSize * operations * 8;
 
-    System.out.println("WRITE");
+    System.out.println("Async WRITE");
     System.out.println("Elapsed writing: " + elapsedSecs + " s");
     System.out.println("Bytes written: " + kb + " kb");
     System.out.println("Bandwidth: " + kb / elapsedSecs + " kb/s");
     System.out.println("Bandwidth: " + bits / elapsedSecs / 1000 / 1000 + " Mbps");
     System.out.println("Latency: " + elapsedSecs / operations + " s");
 
+    futures.clear();
     // Read
-    ActiveReadableChannel readableChannel = proxy.getReadableChannel();
+    ActiveAsyncChannel readableChannel = proxy.getReadableAsyncChannel();
 
     time1 = System.currentTimeMillis();
 
-    long totalRead = 0;
-    int currentRead;
     for (int i = 0; i < operations; i++) {
       buffer.clear();
-      currentRead = readableChannel.read(buffer);
-      if (currentRead > 0) {
-        totalRead += currentRead;
-      }
+      futures.add(readableChannel.read(buffer));
     }
+    long totalRead = futures.stream().collect(Collectors.summingLong(f -> {
+      try {
+        return f.get().longValue();
+      } catch (InterruptedException | ExecutionException e) {
+        e.printStackTrace();
+        return 0;
+      }
+    }));
     readableChannel.close();
 
     time2 = System.currentTimeMillis();
@@ -81,7 +97,7 @@ public class BenchActionBw {
     bits = (double) totalRead * 8;
 
     System.out.println();
-    System.out.println("READ");
+    System.out.println("Async READ");
     System.out.println("Elapsed reading: " + elapsedSecs + " s");
     System.out.println("Bytes read: " + kb + " kb");
     System.out.println("Bandwidth: " + kb / elapsedSecs + " kb/s");

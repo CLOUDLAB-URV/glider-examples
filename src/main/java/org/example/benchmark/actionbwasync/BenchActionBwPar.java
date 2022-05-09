@@ -1,13 +1,15 @@
-package org.example.benchmark.actionbw;
+package org.example.benchmark.actionbwasync;
 
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import org.apache.crail.CrailLocationClass;
 import org.apache.crail.CrailNodeType;
@@ -16,11 +18,11 @@ import org.apache.crail.CrailObjectProxy;
 import org.apache.crail.CrailStorageClass;
 import org.apache.crail.CrailStore;
 import org.apache.crail.conf.CrailConfiguration;
-import org.apache.crail.core.ActiveReadableChannel;
-import org.apache.crail.core.ActiveWritableChannel;
+import org.apache.crail.core.ActiveAsyncChannel;
+import org.example.benchmark.BwAction;
 
 public class BenchActionBwPar {
-  private static int N_ACTIONS = 16;
+  private static int N_ACTIONS = 32;
   private static int bufferSize = 1024 * 1024;
   private static long totalBytes = 10737418240L; // 10 GiB
   private static long operations = totalBytes / bufferSize;
@@ -137,14 +139,22 @@ public class BenchActionBwPar {
     public void run() {
       try {
         // Write
-        ActiveWritableChannel writableChannel = proxy.getWritableChannel();
+        ActiveAsyncChannel writableChannel = proxy.getWritableAsyncChannel();
 
         ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize);
 
+        List<Future<Integer>> futures = new LinkedList<>();
         for (long i = 0; i < operations; i++) {
-          writableChannel.write(buffer);
+          futures.add(writableChannel.write(buffer));
           buffer.clear();
         }
+        futures.forEach(f -> {
+          try {
+            f.get();
+          } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+          }
+        });
         writableChannel.close();
 
       } catch (Exception e) {
@@ -165,18 +175,22 @@ public class BenchActionBwPar {
     public void run() {
       try {
         // Read
-        ActiveReadableChannel readableChannel = proxy.getReadableChannel();
+        ActiveAsyncChannel readableChannel = proxy.getReadableAsyncChannel();
         ByteBuffer buffer = ByteBuffer.allocateDirect(bufferSize);
 
-        long totalRead = 0;
-        int currentRead;
+        List<Future<Integer>> futures = new LinkedList<>();
         for (int i = 0; i < operations; i++) {
           buffer.clear();
-          currentRead = readableChannel.read(buffer);
-          if (currentRead > 0) {
-            totalRead += currentRead;
-          }
+          futures.add(readableChannel.read(buffer));
         }
+        long totalRead = futures.stream().collect(Collectors.summingLong(f -> {
+          try {
+            return f.get().longValue();
+          } catch (InterruptedException | ExecutionException e) {
+            e.printStackTrace();
+            return 0;
+          }
+        }));
         readableChannel.close();
 
         double kb = (double) totalRead / 1024;
