@@ -154,7 +154,7 @@ public class ClientParallel {
         formatter.printHelp("bench actions", options);
         System.exit(-1);
       }
-      System.out.printf("\nbenmark %s, buffer size %d, iterations %d, batch size %d, parallel %d, experiments %d\n",
+      System.out.printf("%nbenmark %s, buffer size %d, iterations %d, batch size %d, parallel %d, experiments %d%n",
           type, buffSize, iterations, batch, nParallel, experiments);
       client.showResults();
 
@@ -165,7 +165,7 @@ public class ClientParallel {
   }
 
   private void showResults() {
-    System.out.printf("Average results of %d experiments\n", experiments);
+    System.out.printf("Average results of %d experiments%n", experiments);
     System.out.println("Bandwidth");
     System.out.println("Read:  " + stats.getBwRead() + " Mbps");
     System.out.println("Write: " + stats.getBwWrite() + " Mbps");
@@ -324,8 +324,8 @@ public class ClientParallel {
     List<Future<?>> taskFutures = new ArrayList<>(par);
 
     // Write
-    long _loop = (long) iterations;
-    long _bufsize = (long) CrailConstants.BUFFER_SIZE;
+    long _loop = iterations;
+    long _bufsize = CrailConstants.BUFFER_SIZE;
     long _capacity = _loop * _bufsize;
     Queue<CrailOutputStream> outStreams = new ConcurrentLinkedQueue<>();
     for (int i = 0; i < par; i++) {
@@ -340,8 +340,8 @@ public class ClientParallel {
         Queue<CrailBuffer> bufferQueue = buffers.poll();
         CrailOutputStream directStream = outStreams.poll();
         try {
-          LinkedBlockingQueue<Future<CrailResult>> futureQueue = new LinkedBlockingQueue<Future<CrailResult>>();
-          HashMap<Integer, CrailBuffer> futureMap = new HashMap<Integer, CrailBuffer>();
+          LinkedBlockingQueue<Future<CrailResult>> futureQueue = new LinkedBlockingQueue<>();
+          HashMap<Integer, CrailBuffer> futureMap = new HashMap<>();
           double ops = 0;
 
           for (int i = 0; i < batch - 1 && ops < iterations; i++) {
@@ -675,8 +675,8 @@ public class ClientParallel {
         ActiveAsyncChannel writableChannel = writeChannels.poll();
         Queue<ByteBuffer> bufferQueue = buffers.poll();
         try {
-          LinkedBlockingQueue<Future<Integer>> futureQueue = new LinkedBlockingQueue<Future<Integer>>();
-          HashMap<Integer, ByteBuffer> futureMap = new HashMap<Integer, ByteBuffer>();
+          LinkedBlockingQueue<Future<Integer>> futureQueue = new LinkedBlockingQueue<>();
+          HashMap<Integer, ByteBuffer> futureMap = new HashMap<>();
           double ops = 0.0;
 
           for (int i = 0; i < batch - 1 && ops < iterations; i++) {
@@ -753,8 +753,8 @@ public class ClientParallel {
         ActiveAsyncChannel readableChannel = readChannels.poll();
         Queue<ByteBuffer> bufferQueue = buffers.poll();
         try {
-          LinkedBlockingQueue<Future<Integer>> futureQueue = new LinkedBlockingQueue<Future<Integer>>();
-          HashMap<Integer, ByteBuffer> futureMap = new HashMap<Integer, ByteBuffer>();
+          LinkedBlockingQueue<Future<Integer>> futureQueue = new LinkedBlockingQueue<>();
+          HashMap<Integer, ByteBuffer> futureMap = new HashMap<>();
           double ops = 0.0;
           for (int i = 0; i < batch - 1 && ops < iterations; i++) {
             ByteBuffer buf = bufferQueue.poll();
