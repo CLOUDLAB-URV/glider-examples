@@ -64,10 +64,11 @@ public class QueryWorker implements Callable<Map<String, Double>> {
   private static final String CUSTOMER_ADDRESS_FILE_PATH = "customer_address/";
   private static final String DATE_DIM_FILE_PATH = "date_dim/";
 
-  private String catalogSalesFile;
-  private String customerFile;
-  private String customerAddressFile;
-  private String dateDimFile;
+  // private String catalogSalesFile;
+  private List<String> catalogSalesFile;
+  private List<String> customerFile;
+  private List<String> customerAddressFile;
+  private List<String> dateDimFile;
 
   /**
    * Worker for query 15.
@@ -75,22 +76,16 @@ public class QueryWorker implements Callable<Map<String, Double>> {
    * The worker processes data from the given partitions. Only one partition per
    * table. And provides the partial result.
    * 
-   * @param catalogSalesPart    Partition number for catalog sales table.
-   * @param customerPart        Partition number for customer table.
-   * @param customerAddressPart Partition number for customer address table.
-   * @param dateDimPart         Partition number for data dim table.
-   * @param baseDir             Base directory fro TPC-DS dataset.
+   * @param catalogSalesPart Partition number for catalog sales table.
+   * @param baseDir          Base directory fro TPC-DS dataset.
    * @throws IOException Error locating the table files.
    */
-  public QueryWorker(
-      int catalogSalesPart, int customerPart,
-      int customerAddressPart, int dateDimPart,
-      String baseDir) throws IOException {
-
-    catalogSalesFile = getFilePath(baseDir, CATALOG_SALES_FILE_PATH, catalogSalesPart);
-    customerFile = getFilePath(baseDir, CUSTOMER_FILE_PATH, customerPart);
-    customerAddressFile = getFilePath(baseDir, CUSTOMER_ADDRESS_FILE_PATH, customerAddressPart);
-    dateDimFile = getFilePath(baseDir, DATE_DIM_FILE_PATH, dateDimPart);
+  public QueryWorker(int catalogSalesPart, String baseDir) throws IOException {
+    // catalogSalesFile = getFilePath(baseDir, CATALOG_SALES_FILE_PATH, catalogSalesPart);
+    catalogSalesFile = getFilePaths(baseDir, CATALOG_SALES_FILE_PATH);
+    customerFile = getFilePaths(baseDir, CUSTOMER_FILE_PATH);
+    customerAddressFile = getFilePaths(baseDir, CUSTOMER_ADDRESS_FILE_PATH);
+    dateDimFile = getFilePaths(baseDir, DATE_DIM_FILE_PATH);
   }
 
   private static String getFilePath(String baseDir, String tablePath, int partNum)
@@ -108,6 +103,16 @@ public class QueryWorker implements Callable<Map<String, Double>> {
     }
   }
 
+  private static List<String> getFilePaths(String baseDir, String tablePath)
+      throws IOException {
+    try (Stream<java.nio.file.Path> files = Files.list(Paths.get(baseDir, tablePath))) {
+      return files
+          .filter(f -> f.getFileName().toString().endsWith(".parquet"))
+          .map(java.nio.file.Path::toString)
+          .collect(Collectors.toList());
+    }
+  }
+
   @Override
   public Map<String, Double> call() throws Exception {
     // ca_zip -> sum(cs_sales_price)
@@ -117,6 +122,7 @@ public class QueryWorker implements Callable<Map<String, Double>> {
     final Parquet customerAddressTable = Reader.getParquetData(customerAddressFile, CA_KEY,
         CA_KEY, CA_ZIP, CA_STATE);
     final Parquet dateDimTable = Reader.getParquetData(dateDimFile, D_KEY, D_KEY, D_QOY, D_YEAR);
+    System.out.println("Files read!");
 
     Reader.runPerRow(catalogSalesFile, sale -> {
       try {

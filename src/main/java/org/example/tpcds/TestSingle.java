@@ -12,7 +12,7 @@ public class TestSingle {
    */
   public static void main(String[] args) {
     try {
-      Callable<Map<String, Double>> task = new QueryWorker(0, 0, 0, 0, BASE_DIR);
+      Callable<Map<String, Double>> task = new QueryWorker(0, BASE_DIR);
       
       long start = System.currentTimeMillis();
 
