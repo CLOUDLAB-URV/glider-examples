@@ -30,16 +30,16 @@ import org.apache.crail.core.ActiveAsyncChannel;
 import org.example.sort.GenPartition;
 
 public class Client {
-  private int workers;
-  private int columnKey;
-  private int rows;
-  private int columns;
-  private String baseCrailpath;
-  private String reduDirName;
-  private String resultFileName;
-  private ExecutorService es;
-  private CrailConfiguration conf;
-  private CrailStore store;
+  private final int workers;
+  private final int columnKey;
+  private final int rows;
+  private final int columns;
+  private final String baseCrailpath;
+  private final String reduDirName;
+  private final String resultFileName;
+  private final ExecutorService es;
+  private final CrailConfiguration conf;
+  private final CrailStore store;
 
   public Client(int workers, String basePath, int rows, int columns, int columnKey) throws Exception {
     this.conf = CrailConfiguration.createConfigurationFromFile();
@@ -74,13 +74,13 @@ public class Client {
 
   public void createReduActions() throws Exception {
     store.create(reduDirName, CrailNodeType.DIRECTORY, CrailStorageClass.get(1),
-        CrailLocationClass.DEFAULT, false).get();
+                 CrailLocationClass.DEFAULT, false).get();
     String actionName;
     for (int i = 0; i < workers; i++) {
       actionName = reduDirName + "/group_" + i;
       store.create(actionName, CrailNodeType.OBJECT, CrailStorageClass.get(0),
-          CrailLocationClass.DEFAULT, false).get().asObject().getProxy()
-          .create(ReduceAction.class, true);  // with interleaving
+                   CrailLocationClass.DEFAULT, false).get().asObject().getProxy()
+           .create(ReduceAction.class, true);  // with interleaving
     }
   }
 
@@ -96,7 +96,7 @@ public class Client {
 
       actionName = reduDirName + "/group_" + i;
       ActiveAsyncChannel readableChannel = s.lookup(actionName).get()
-          .asObject().getProxy().getReadableAsyncChannel();
+                                            .asObject().getProxy().getReadableAsyncChannel();
       channels.add(readableChannel);
     }
     for (ActiveAsyncChannel activeAsyncChannel : channels) {
@@ -148,7 +148,7 @@ public class Client {
 
   public void createResultFile() throws Exception {
     store.create(resultFileName, CrailNodeType.MULTIFILE, CrailStorageClass.get(1),
-        CrailLocationClass.DEFAULT, false).get();
+                 CrailLocationClass.DEFAULT, false).get();
   }
 
   public void deleteResultFile() throws Exception {
@@ -164,7 +164,8 @@ public class Client {
     List<Future<?>> futures = new ArrayList<>(workers);
     List<CrailStore> stores = new ArrayList<>(workers);
 
-    String partName, groupsPattern;
+    String partName;
+    String groupsPattern;
     for (int i = 0; i < workers; i++) {
       CrailStore s = CrailStore.newInstance(conf);
       stores.add(s);
@@ -358,11 +359,11 @@ public class Client {
       client.close();
 
       StringBuilder setup = new StringBuilder("\nSort setup:\n");
-      setup.append(String.format("Workers: %d\n", workers));
-      setup.append(String.format("Base path: %s\n", filename));
-      setup.append(String.format("Sorting key: %s\n", columnKey));
+      setup.append(String.format("Workers: %d%n", workers));
+      setup.append(String.format("Base path: %s%n", filename));
+      setup.append(String.format("Sorting key: %s%n", columnKey));
       if (generate) {
-        setup.append(String.format("Generate %d partitions of %d rows and %d columns.\n", workers, rows, columns));
+        setup.append(String.format("Generate %d partitions of %d rows and %d columns.%n", workers, rows, columns));
       }
       if (delete) {
         setup.append("Delete generated data.\n");
@@ -379,12 +380,12 @@ public class Client {
       long genElapsed = sot - stt;
       long mapElapsed = mpt - sot;
       long reduceElapsed = edt - mpt;
-      StringBuilder report = new StringBuilder("Time report (s):\n");
-      report.append(String.format("Total: %.3f\n", (double) totalElapsed / 1000));
-      report.append(String.format("Generate data: %.3f\n", (double) genElapsed / 1000));
-      report.append(String.format("Sort: %.3f\n", (double) (edt - sot) / 1000));
-      report.append(String.format(" | Map-Reduce: %.3f\n", (double) mapElapsed / 1000));
-      report.append(String.format(" | Write result: %.3f\n", (double) reduceElapsed / 1000));
+      String report = "Time report (s):\n" +
+          String.format("Total: %.3f%n", (double) totalElapsed / 1000) +
+          String.format("Generate data: %.3f%n", (double) genElapsed / 1000) +
+          String.format("Sort: %.3f%n", (double) (edt - sot) / 1000) +
+          String.format(" | Map-Reduce: %.3f%n", (double) mapElapsed / 1000) +
+          String.format(" | Write result: %.3f%n", (double) reduceElapsed / 1000);
 
       System.out.println(report);
 
