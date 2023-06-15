@@ -1,4 +1,4 @@
-FROM crail:daniel
+FROM crail:glider
 
 ADD . /application
 

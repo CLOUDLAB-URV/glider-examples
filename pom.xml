@@ -37,7 +37,7 @@
         <dependency>
             <groupId>org.apache.crail</groupId>
             <artifactId>crail-client</artifactId>
-            <version>1.3-daniel</version>
+            <version>1.3-glider</version>
         </dependency>
         <dependency>
             <groupId>commons-cli</groupId>
